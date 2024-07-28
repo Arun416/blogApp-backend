@@ -2,9 +2,25 @@ const blogModel = require('../models/blog.model');
 
 const getAllBlogs = async(req,res)=>{
     try{
-        const blogs = await blogModel.find();
+        const { sortBy = 'createdAt', order = 'asc', page = 1, limit = 10 } = req.query;
+
+        const pageNo = parseInt(page,10);
+        const limitNo = parseInt(limit,10);
+
+        const skip = (pageNo - 1) * limitNo;
+
+        // Construct the sort object
+        const sortOrder = order === 'asc' ? 1 : -1;
+        const sortOptions = { [sortBy]: sortOrder };
+
+        const blogs = await blogModel.find().sort(sortOptions).skip(skip).limit(limitNo);;
+        
+        const totalBlogs = await blogModel.countDocuments();
+        
         if(blogs){
-            res.status(200).json({data:blogs})
+            res.status(200).json({data: blogs,totalBlogs,
+                totalPages: Math.ceil(totalBlogs / limitNo),
+                currentPage: pageNo})
         }
     }
     catch(err){
@@ -34,15 +50,36 @@ const createBlog = async(req,res)=>{
 
 
 const getUsersBlogs = async(req,res)=>{
-        console.log("welcone");
         let userId = req.user;
-        console.log(userId,"usersId1");
-        console.log(req.params.id,"usersId2");
+      
     try {
-        const blogs = await blogModel.find({author: req.params.id});
+
+        const { sortBy='createdAt', order , page, limit} = req.query;
+
+        const pageNo = parseInt(page,10);
+        const limitNo = parseInt(limit,10);
+
+        const skip = (pageNo - 1) * limitNo;
+
+        // Construct the sort object
+        const sortOrder = order === 'asc' ? 1 : -1;
+        const sortOptions = { [sortBy]: sortOrder };
         
+
+
+        const blogs = await blogModel.find({author: req.params.id}).sort(sortOptions).skip(skip).limit(limitNo);;
+        const totalBlogs = await blogModel.countDocuments({ author: req.params.id });
+
         if(blogs){
-            res.status(200).json({data:blogs})
+            res.status(200).json({
+                data: blogs,
+                totalBlogs,
+                totalPages: Math.ceil(totalBlogs / limitNo),
+                currentPage: pageNo
+            })
+        }
+        else {
+            res.status(404).json({ message: 'No blogs found for this user.' });
         }
     }
     catch(err){
